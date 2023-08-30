@@ -195,12 +195,12 @@ fn register_camera_rgb(
     thread::spawn(move || loop {
         match rx.recv() {
             Ok((MessageType::SensorData, sensor_data)) => {
-                if let Err(_) = image_publisher.put(sensor_data).res() {
+                if image_publisher.put(sensor_data).res().is_err() {
                     error!("Failed to publish to {}", raw_key);
                 }
             }
             Ok((MessageType::InfoData, info_data)) => {
-                if let Err(_) = info_publisher.put(info_data).res() {
+                if info_publisher.put(info_data).res().is_err() {
                     error!("Failed to publish to {}", info_key);
                 }
             }
@@ -262,7 +262,7 @@ fn register_lidar_raycast(
     thread::spawn(move || loop {
         match rx.recv() {
             Ok((MessageType::SensorData, sensor_data)) => {
-                if let Err(_) = pcd_publisher.put(sensor_data).res() {
+                if pcd_publisher.put(sensor_data).res().is_err() {
                     error!("Failed to publish to {}", key);
                 }
             }
@@ -295,7 +295,7 @@ fn register_lidar_raycast_semantic(
     thread::spawn(move || loop {
         match rx.recv() {
             Ok((MessageType::SensorData, sensor_data)) => {
-                if let Err(_) = pcd_publisher.put(sensor_data).res() {
+                if pcd_publisher.put(sensor_data).res().is_err() {
                     error!("Failed to publish to {}", key);
                 }
             }
@@ -328,7 +328,7 @@ fn register_imu(
     thread::spawn(move || loop {
         match rx.recv() {
             Ok((MessageType::SensorData, sensor_data)) => {
-                if let Err(_) = imu_publisher.put(sensor_data).res() {
+                if imu_publisher.put(sensor_data).res().is_err() {
                     error!("Failed to publish to {}", key);
                 }
             }
@@ -360,7 +360,7 @@ fn register_gnss(
     thread::spawn(move || loop {
         match rx.recv() {
             Ok((MessageType::SensorData, sensor_data)) => {
-                if let Err(_) = gnss_publisher.put(sensor_data).res() {
+                if gnss_publisher.put(sensor_data).res().is_err() {
                     error!("Failed to publish to {}", key);
                 }
             }
@@ -406,7 +406,7 @@ fn camera_callback(
     };
 
     let encoded = cdr::serialize::<_, _, CdrLe>(&image_msg, Infinite)?;
-    if let Err(_) = tx.send((MessageType::SensorData, encoded)) {
+    if tx.send((MessageType::SensorData, encoded)).is_err() {
         error!("Failed to send message");
     }
     Ok(())
@@ -445,7 +445,7 @@ fn camera_info_callback(
     };
 
     let encoded = cdr::serialize::<_, _, CdrLe>(&camera_info, Infinite)?;
-    if let Err(_) = tx.send((MessageType::InfoData, encoded)) {
+    if tx.send((MessageType::InfoData, encoded)).is_err() {
         error!("Failed to send message");
     }
     Ok(())
@@ -511,7 +511,7 @@ fn lidar_callback(
         is_dense: true,
     };
     let encoded = cdr::serialize::<_, _, CdrLe>(&lidar_msg, Infinite)?;
-    if let Err(_) = tx.send((MessageType::SensorData, encoded)) {
+    if tx.send((MessageType::SensorData, encoded)).is_err() {
         error!("Failed to send message");
     }
     Ok(())
@@ -599,7 +599,7 @@ fn senmatic_lidar_callback(
         is_dense: true,
     };
     let encoded = cdr::serialize::<_, _, CdrLe>(&lidar_msg, Infinite)?;
-    if let Err(_) = tx.send((MessageType::SensorData, encoded)) {
+    if tx.send((MessageType::SensorData, encoded)).is_err() {
         error!("Failed to send message");
     }
     Ok(())
@@ -608,7 +608,7 @@ fn senmatic_lidar_callback(
 /* TODO: Temporarily solution, since r2r generates wrong IMU message type */
 use serde_derive::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, PartialEq)]
-struct IMU {
+struct Imu {
     header: std_msgs::Header,
     orientation: [f64; 4],
     orientation_covariance: [f64; 9],
@@ -632,25 +632,25 @@ fn imu_callback(
     TODO: We generates IMU message type by ourselves, since r2r views array as Vec.
           Vec includes some header, so we can't send it directly.
     */
-    let imu_msg = IMU {
+    let imu_msg = Imu {
         header,
         orientation: [
-            /*x:*/ orientation.coords.data.0[0][3] as f64,
-            /*y:*/ orientation.coords.data.0[0][1] as f64,
-            /*z:*/ orientation.coords.data.0[0][0] as f64,
-            /*w:*/ orientation.coords.data.0[0][2] as f64,
+            /* x: */ orientation.coords.data.0[0][3] as f64,
+            /* y: */ orientation.coords.data.0[0][1] as f64,
+            /* z: */ orientation.coords.data.0[0][0] as f64,
+            /* w: */ orientation.coords.data.0[0][2] as f64,
         ],
         orientation_covariance: [0.0; 9],
         angular_velocity: [
-            /*x:*/ -gyro[0] as f64,
-            /*y:*/ gyro[1] as f64,
-            /*z:*/ -gyro[2] as f64,
+            /* x: */ -gyro[0] as f64,
+            /* y: */ gyro[1] as f64,
+            /* z: */ -gyro[2] as f64,
         ],
         angular_velocity_covariance: [0.0; 9],
         linear_acceleration: [
-            /*x:*/ accel[0] as f64,
-            /*y:*/ -accel[1] as f64,
-            /*z:*/ accel[2] as f64,
+            /* x: */ accel[0] as f64,
+            /* y: */ -accel[1] as f64,
+            /* z: */ accel[2] as f64,
         ],
         linear_acceleration_covariance: [0.0; 9],
     };
@@ -681,7 +681,7 @@ fn imu_callback(
     */
 
     let encoded = cdr::serialize::<_, _, CdrLe>(&imu_msg, Infinite)?;
-    if let Err(_) = tx.send((MessageType::SensorData, encoded)) {
+    if tx.send((MessageType::SensorData, encoded)).is_err() {
         error!("Failed to send message");
     }
     Ok(())
@@ -698,17 +698,17 @@ fn gnss_callback(
         longitude: measure.longitude(),
         altitude: measure.attitude() + 17.0,
         status: sensor_msgs::NavSatStatus {
-            status: GnssStatus::StatusSbasFix as i8,
-            service: GnssService::ServiceGps as u16
-                | GnssService::ServiceGlonass as u16
-                | GnssService::ServiceCompass as u16
-                | GnssService::ServiceGalileo as u16,
+            status: GnssStatus::SbasFix as i8,
+            service: GnssService::Gps as u16
+                | GnssService::Glonass as u16
+                | GnssService::Compass as u16
+                | GnssService::Galileo as u16,
         },
         position_covariance: [0.0; 9],
         position_covariance_type: 0, // unknown type
     };
     let encoded = cdr::serialize::<_, _, CdrLe>(&gnss_msg, Infinite)?;
-    if let Err(_) = tx.send((MessageType::SensorData, encoded)) {
+    if tx.send((MessageType::SensorData, encoded)).is_err() {
         error!("Failed to send message");
     }
     Ok(())
@@ -725,7 +725,7 @@ impl Drop for SensorBridge {
         if self.sensor_type != SensorType::Collision && self.sensor_type != SensorType::NotSupport {
             // Not sure why the tx doesn't release in sensor callback, so rx can't use RecvErr to close the thread
             // I create another message type to notify the thread to close
-            if let Err(_) = self.tx.send((MessageType::StopThread, vec![])) {
+            if self.tx.send((MessageType::StopThread, vec![])).is_err() {
                 error!("Unable to stop the thread")
             }
         }

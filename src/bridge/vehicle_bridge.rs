@@ -149,7 +149,7 @@ impl<'a> VehicleBridge<'a> {
         let steer_msg = SteeringReport {
             stamp: Time {
                 sec: timestamp.floor() as i32,
-                nanosec: (timestamp.fract() * 1000_000_000_f64) as u32,
+                nanosec: (timestamp.fract() * 1_000_000_000_f64) as u32,
             },
             steering_tire_angle: self
                 .actor
@@ -166,9 +166,9 @@ impl<'a> VehicleBridge<'a> {
         let gear_msg = GearReport {
             stamp: Time {
                 sec: timestamp.floor() as i32,
-                nanosec: (timestamp.fract() * 1000_000_000_f64) as u32,
+                nanosec: (timestamp.fract() * 1_000_000_000_f64) as u32,
             },
-            report: if self.actor.control().reverse { 20 } else { 2 }, // TODO: Use enum (20: reverse, 2: drive)
+            report: if self.actor.control().reverse { 20 } else { 2 }, /* TODO: Use enum (20: reverse, 2: drive) */
         };
         let encoded = cdr::serialize::<_, _, CdrLe>(&gear_msg, Infinite)?;
         self.publisher_gear.put(encoded).res()?;
@@ -179,9 +179,9 @@ impl<'a> VehicleBridge<'a> {
         let control_msg = ControlModeReport {
             stamp: Time {
                 sec: timestamp.floor() as i32,
-                nanosec: (timestamp.fract() * 1000_000_000_f64) as u32,
+                nanosec: (timestamp.fract() * 1_000_000_000_f64) as u32,
             },
-            mode: 1, // 1: AUTONOMOUS, 4: MANUAL. TODO: Now we don't have any way to switch these two modes.
+            mode: 1, /* 1: AUTONOMOUS, 4: MANUAL. TODO: Now we don't have any way to switch these two modes. */
         };
         let encoded = cdr::serialize::<_, _, CdrLe>(&control_msg, Infinite)?;
         self.publisher_control.put(encoded).res()?;
