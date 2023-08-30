@@ -7,11 +7,7 @@ use arc_swap::ArcSwap;
 use atomic_float::AtomicF32;
 use carla::{
     client::{ActorBase, Vehicle},
-    rpc::{VehicleControl, VehicleWheelLocation},
-};
-use carla_ackermann::{
-    vehicle_control::{Output, TargetRequest},
-    VehicleController,
+    rpc::{VehicleAckermannControl, VehicleWheelLocation},
 };
 use cdr::{CdrLe, Infinite};
 use log::{debug, info};
@@ -35,7 +31,6 @@ pub struct VehicleBridge<'a> {
     publisher_gear: Publisher<'a>,
     publisher_control: Publisher<'a>,
     speed: Arc<AtomicF32>,
-    controller: VehicleController,
     current_ackermann_cmd: Arc<ArcSwap<AckermannControlCommand>>,
 }
 
@@ -58,8 +53,6 @@ impl<'a> VehicleBridge<'a> {
         }
 
         info!("Detect a vehicle {vehicle_name}");
-        let physics_control = actor.physics_control();
-        let controller = VehicleController::from_physics_control(&physics_control, None);
 
         let publisher_velocity = z_session
             .declare_publisher(format!("{vehicle_name}/rt/vehicle/status/velocity_status"))
@@ -119,7 +112,6 @@ impl<'a> VehicleBridge<'a> {
             publisher_gear,
             publisher_control,
             speed,
-            controller,
             current_ackermann_cmd,
         })
     }
@@ -137,7 +129,7 @@ impl<'a> VehicleBridge<'a> {
             lateral_velocity: 0.0,
             heading_rate: self
                 .actor
-                .get_wheel_steer_angle(VehicleWheelLocation::FL_Wheel)
+                .wheel_steer_angle(VehicleWheelLocation::FL_Wheel)
                 .to_radians()
                 * -1.0,
         };
@@ -161,7 +153,7 @@ impl<'a> VehicleBridge<'a> {
             },
             steering_tire_angle: self
                 .actor
-                .get_wheel_steer_angle(VehicleWheelLocation::FL_Wheel)
+                .wheel_steer_angle(VehicleWheelLocation::FL_Wheel)
                 .to_radians()
                 * -1.0,
         };
@@ -219,41 +211,20 @@ impl<'a> VehicleBridge<'a> {
         );
         let current_speed = self.actor.velocity().norm();
         let (_, pitch_radians, _) = self.actor.transform().rotation.euler_angles();
-        self.controller.set_target(TargetRequest {
-            steering_angle: -steering_tire_angle.to_degrees() as f64,
-            speed: speed as f64,
-            accel: acceleration as f64,
-        });
+
+        self.actor
+            .apply_ackermann_control(&VehicleAckermannControl {
+                steer: -steering_tire_angle.to_degrees(),
+                steer_speed: 0.0,
+                speed,
+                acceleration,
+                jerk: 0.0,
+            });
+
         debug!(
             "Autoware => Carla: elapse_sec:{} current_speed:{} pitch_radians:{}",
             elapsed_sec, current_speed, pitch_radians
         );
-        let (
-            Output {
-                throttle,
-                brake,
-                steer,
-                reverse,
-                hand_brake,
-            },
-            _,
-        ) = self
-            .controller
-            .step(elapsed_sec, current_speed as f64, pitch_radians as f64);
-        debug!(
-            "Autoware => Carla: throttle:{}, brake:{}, steer:{}",
-            throttle, brake, steer
-        );
-
-        self.actor.apply_control(&VehicleControl {
-            throttle: throttle as f32,
-            steer: steer as f32,
-            brake: brake as f32,
-            hand_brake,
-            reverse,
-            manual_gear_shift: false,
-            gear: 0,
-        });
     }
 
     pub fn vehicle_name(&self) -> &str {
