@@ -193,12 +193,14 @@ impl<'a> VehicleBridge<'a> {
             lateral:
                 AckermannLateralCommand {
                     steering_tire_angle,
+                    steering_tire_rotation_rate,
                     ..
                 },
             longitudinal:
                 LongitudinalCommand {
                     speed,
                     acceleration,
+                    jerk,
                     ..
                 },
             ..
@@ -215,10 +217,10 @@ impl<'a> VehicleBridge<'a> {
         self.actor
             .apply_ackermann_control(&VehicleAckermannControl {
                 steer: -steering_tire_angle.to_degrees(),
-                steer_speed: 0.0,
+                steer_speed: -steering_tire_rotation_rate.to_degrees(),
                 speed,
                 acceleration,
-                jerk: 0.0,
+                jerk,
             });
 
         debug!(
